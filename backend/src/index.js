@@ -4,17 +4,8 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const TaskStatus = require('./models/TaskStatus');
 
-// Connect to database
-connectDB();
-
-// Seed the fixed set of task statuses if they don't exist yet
-const seedTaskStatuses = async () => {
-  const names = ['todo', 'inprogress', 'qa', 'release'];
-  await Promise.all(
-    names.map((name) => TaskStatus.updateOne({ name }, { name }, { upsert: true }))
-  );
-};
-seedTaskStatuses();
+// We will wait for the connection before seeding and starting the server
+// (see below)
 
 const app = express();
 
@@ -45,6 +36,23 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+// Connect to database, seed data, and start server
+connectDB().then(() => {
+  // Seed the fixed set of task statuses if they don't exist yet
+  const seedTaskStatuses = async () => {
+    const names = ['todo', 'inprogress', 'qa', 'release'];
+    try {
+      await Promise.all(
+        names.map((name) => TaskStatus.updateOne({ name }, { name }, { upsert: true }))
+      );
+      console.log('Task statuses seeded successfully');
+    } catch (error) {
+      console.error('Error seeding task statuses:', error);
+    }
+  };
+  seedTaskStatuses();
+
+  app.listen(PORT, () => {
+    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  });
 });
